@@ -22,7 +22,15 @@ The root contains the following folders
   + `circular/` flux through a circular spot
   + `flower/` flux through a flower-shaped spot
 
+## TODO
+
++ @PaulBeguin Do not add any v0, v1 in folder and file names.
++ @PaulBeguin Please clean up undeeded files and folders.
++ @PaulBegiun Clean up the reader that it does not detect any specific platform, if needed to use different gmsh versions, it need to be specified as function's argument or could be detected on flight from *.msh file.
+
+
 ## :paperclip: History
+
 
 Apr 6 2023: First commit
 

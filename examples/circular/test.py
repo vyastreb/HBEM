@@ -10,12 +10,12 @@ import matplotlib as mpl
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 mpl.use('agg')
-plt.style.use('my-style')
+# plt.style.use('my-style')
 
 ## module path gmsh and BEM
 import sys
 import platform 
-sys.path.append( '/home/pbeguin/Bureau/BEM_modul_v2')
+sys.path.append( '../../src')
 
 ## modul for gmsh 
 import Gmsh.Area as GmshArea
@@ -34,7 +34,7 @@ import Hierarchie.FastBem as Bem
 ## input gmsh 
 type_elem = 2
 filename_msh = 'circ2.msh'
-path_msh = '/home/pbeguin/Bureau/BEM_modul_v2/examples/circular'
+path_msh = '.'
 
 mesh_Circ = GmshRead.Geom_Gmsh_read(type_elem, filename_msh, path_msh)
 print( '\n --- read msh file name : %s \n'%(filename_msh) + 

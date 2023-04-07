@@ -13,7 +13,7 @@ import time
 ## module path gmsh and BEM
 import sys
 # sys.path.append('/home/users02/pbeguin/BEM_modul_cristal')
-sys.path.append( '/home/pbeguin/Bureau/BEM_modul')
+sys.path.append( '../../src/')
 
 ## modul for gmsh 
 import Gmsh.Read.File as GmshRead
@@ -31,7 +31,7 @@ import scipy.sparse.linalg as lin_sc
 ##################
 
 ### location and filename
-path = '/home/pbeguin/Bureau/BEM_modul_v2/examples/circular_v0'
+path = '.'
 filename_gmsh = 'circ2.msh'
 
 

@@ -4,7 +4,7 @@ import numpy as np
 import numpy.linalg as lin
 import os
 
-import time 
+# import time 
 # import scipy.linalg as sclin
 
 ## matplotlib for plotBlockTree fucntion
@@ -27,7 +27,7 @@ def load_cluster(cluster) :
 
 
 
-class FastBem( Bem_integ ) : 
+class FastBemZ( Bem_integ ) : 
 
     """
     FastBem( cluster1, cluster2, eta, err, errb, path_save)
@@ -56,6 +56,9 @@ class FastBem( Bem_integ ) :
         self.sing = sing
         self.STotElem1, self.STot1, self.SLevel1, self.SizeLevel1, _, self.mesh_size1, self.X0_mesh1, self.Ne1 = load_cluster(Cluster1)
         self.STotElem2, self.STot2, self.SLevel2, self.SizeLevel2, self.mesh2, self.mesh_size2, self.X0_mesh2, self.Ne2 = load_cluster(Cluster2)
+        self.Sleaf = len( self.SLevel1 )
+
+        ## integration module 
         Bem_integ.__init__(self, Cluster1.X0_mesh, Cluster2, self.sing)
 
         ## error and ACA
@@ -72,7 +75,8 @@ class FastBem( Bem_integ ) :
 
         ## constuction of admissibility tree
         self.Nlevel = 0
-        self.F_tree_adm = self.CreateBlockTree( 0, 0 )
+        self.CreateBlockTree_init( )
+        print( self.Nblock )
         
         ## set the coefficient compter
         self.CompCoef = 0
@@ -80,23 +84,49 @@ class FastBem( Bem_integ ) :
         self.CompCoefSafeOpti = 0
         
         ## Fast integration using ACA
-        self.Nlevel = 0
-        t1 = time.process_time()
-        self.Af_tree, self.Bf_tree, self.F_tree_rk = self.CreateBlockTreeBem(0, 0)
-        self.Tinteg = time.process_time() - t1 
+        self.CreateBlockTreeBem_init( )
+        
         os.chdir(self.path_save)
         np.savez('temp_Af_Bf.npz', Af_tree = self.Af_tree, Bf_tree = self.Bf_tree, F_tree_rk = self.F_tree_rk)
         
-        ## optimisation 
-        t2 = time.process_time()
-        self.Af_opti_tree, self.Bf_opti_tree, self.F_opti_tree_rk, self.F_opti_adm = self.Optimisation(self.Af_tree, self.Bf_tree, self.F_tree_rk, self.F_tree_adm, 0, 0)
-        self.Tinteg_opti = time.process_time() - t2 
-
-        os.chdir(self.path_save)
-        np.savez('temp_opti.npz', Af_opti_tree = self.Af_opti_tree, Bf_opti_tree = self.Bf_opti_tree, F_opti_tree_rk = self.F_opti_tree_rk)
+        self.k = 0
+        # ## optimisation 
+        # self.Af_opti_tree, self.Bf_opti_tree, self.F_opti_tree_rk, self.F_opti_adm = self.Optimisation(self.Af_tree, self.Bf_tree, self.F_tree_rk, self.F_tree_adm, 0, 0)
+        
+        # os.chdir(self.path_save)
+        # np.savez('temp_opti.npz', Af_opti_tree = self.Af_opti_tree, Bf_opti_tree = self.Bf_opti_tree, F_opti_tree_rk = self.F_opti_tree_rk)
 
         ## assemble
         # self.F_opti = self.AssembleBlockTree_AB(self.AF_opti_tree, self.BF_opti_tree, 0, 0)
+
+    def CreateBlockTree_init( self ) :
+
+        self.m_max = np.ceil( self.Ne1 / 2**(self.Sleaf-1) )
+        self.n_max = np.ceil( self.Ne2 / 2**(self.Sleaf-1) )
+        self.F_tree_adm = []
+
+        self.CreateBlockTree( 0, 0 )
+        self.Nblock = len( self.F_tree_adm )
+
+
+    def CreateBlockTreeBem_init( self ) :
+
+        k_max = max( self.m_max, self.n_max )
+
+        ## initial Af_tree, Bf_tree, F_tree 
+        self.Af_tree = np.array( [ np.empty((self.m_max, k_max)) for _ in range(self.Nblock) ] )
+        self.Bf_tree = np.array( [ np.empty((k_max, self.n_max)) for _ in range(self.Nblock) ] )
+        self.F_tree_rk = np.empty( self.Nblock, dtype=int )
+
+        ## BEM integration , filling of the matrices Af_tree and Bf_tree
+        for n in range( self.Nblock ):
+            self.CreateBlockTreeBem( n )
+
+        ## after optimisation 
+        k_max = np.max( self.F_tree_rk )
+        self.Af_opti_tree = np.array( [ np.empty((self.m_max, k_max)) for _ in range(self.Nblock) ] )
+        self.Bf_opti_tree = np.array( [ np.empty((k_max, self.n_max)) for _ in range(self.Nblock) ] )
+        self.F_opti_tree_rk = np.empty( self.Nblock, dtype=int )
 
 
     def D_def(self, pos1, pos2) :
@@ -148,8 +178,8 @@ class FastBem( Bem_integ ) :
         d_12 = self.D_def(pos1, pos2)
 
         if min(size1, size2) <= self.eta*d_12 :
-            return(1)
-        return(0)
+            return 1
+        return 0
         
 
     def CreateBlockTree(self, pos1, pos2) :
@@ -171,22 +201,24 @@ class FastBem( Bem_integ ) :
 
         if self.Admissible_def(pos1, pos2) == 1 :
             self.Nlevel -= 1
-            return( [1] )
+            self.F_tree_adm.append( [1, self.Nlevel, pos1, pos2] )
+            if self.m_max < self.DimSLevel1[self.Nlevel][pos1] :
+                self.m_max = self.DimSLevel1[self.Nlevel][pos1]
+            if self.n_max < self.DimSLevel2[self.Nlevel][pos2] :
+                self.n_max = self.DimSLevel2[self.Nlevel][pos2]
+            return
 
-        elif len(self.SLevel1[self.Nlevel-1][pos1])==1 or len(self.SLevel2[self.Nlevel-1][pos2])==1 :
+        elif self.Nlevel == self.Sleaf :
             self.Nlevel -= 1
-            return( [0] )
+            self.F_tree_adm.append( [0, self.Nlevel, pos1, pos2] )
+            return
 
-        # else :
-        M_r_i = np.ndarray( shape=(2,2), dtype=np.ndarray )
-
-        M_r_i[0][0] = self.CreateBlockTree(pos1*2, pos2*2)
-        M_r_i[1][0] = self.CreateBlockTree(pos1*2+1, pos2*2)
-        M_r_i[0][1] = self.CreateBlockTree(pos1*2, pos2*2+1)
-        M_r_i[1][1] = self.CreateBlockTree(pos1*2+1, pos2*2+1)
+        self.CreateBlockTree(pos1*2, pos2*2)
+        self.CreateBlockTree(pos1*2, pos2*2+1)
+        self.CreateBlockTree(pos1*2+1, pos2*2)
+        self.CreateBlockTree(pos1*2+1, pos2*2+1)
         self.Nlevel -= 1
-
-        return( M_r_i )
+        return
 
 
     def SvdRk2(self, M) :
@@ -209,65 +241,51 @@ class FastBem( Bem_integ ) :
 
         A, s, Vh = lin.svd(M.astype('float64'), full_matrices=True)
         s_selec = np.where(s >= self.err_bis*s[0])[0]
-        return( A[:,s_selec]*s[s_selec], Vh[s_selec,:], [len(s_selec)] )
+        return( A[:,s_selec]*s[s_selec], Vh[s_selec,:], len(s_selec) )
 
     
-    def CreateBlockTreeBem(self, pos1, pos2) :
+    def CreateBlockTreeBem(self, k) :
 
         """
-        CreateBlockTreeBem(pos1, pos2) - integration Bem
-        --- input : pos1, pos2 
-
-        --- output : two H_matrix A, B, and the rank k 
-        -     A, the left hand side H_matrix
-        -     B, the right hand side H_matrix
-        -       if block non-admissible, B is empty 
-
-        --- details :
-        -     if blocks admissibles, blocks computed by Aca, and Svd post traitement for the best approximation
-        -     elif last scale and non-admissible, block fully integrated
-        -     else, recursive call, see if the blocks are admissible at the next stage
-
+        CreateBlockTreeBem( k ) - integration Bem - non recursive procedure
+        
         """
 
-        self.Nlevel += 1
+        Adm, Nlevel, pos1, pos2 = self.F_tree_adm[k]
 
-        if self.Admissible_def(pos1, pos2) == 1 : ## if blocks admissible
+        if Adm == 1 : ## if blocks admissible
             
-            Sig1, Tau2 = self.AssemSLevel1[self.Nlevel-1][pos1], self.AssemSLevel2[self.Nlevel-1][pos2]
-            Rk, _, compt1, compt2 = AcaPlus(Sig1, Tau2, self.F_integ_nsing, self.err2)
+            Sig, Tau = self.AssemSLevel1[Nlevel][pos1], self.AssemSLevel2[Nlevel][pos2]
+            m, n = len( Sig ), len( Tau )
+
+            Rk, _, compt1, compt2 = AcaPlus(Sig, Tau, self.F_integ_nsing, self.err2)
             self.CompCoef += compt1
             self.CompCoefSafe += compt2
-            self.Nlevel -= 1
-            return( self.SvdRk2(Rk) )
 
+            Ak, Bk, rk = self.SvdRk2(Rk) 
+            self.Af_tree[k][:m,:rk] = Ak
+            self.Bf_tree[k][:rk,:n] = Bk
+            self.F_tree_rk[k] = rk 
         
-        elif len(self.SLevel1[self.Nlevel-1][pos1])==1 or len(self.SLevel2[self.Nlevel-1][pos2])==1 : ## elif non admissible
 
-            m, n = self.DimSLevel1[self.Nlevel-1][pos1], self.DimSLevel2[self.Nlevel-1][pos2]
-            self.CompCoef += m*n
-            self.CompCoefSafe += m*n
-            self.Nlevel -= 1
+        else : ## elif non admissible
+
+            Sig, Tau = self.STotElem1[pos1], self.STotElem2[pos2]
+            m, n = len( Sig ), len( Tau )
+            self.CompCoef += n * m
+            self.CompCoefSafe += n * m
 
             if self.sing == True :
-                return( np.array( [ [ self.F_integ_sing(self.STotElem1[pos1][i], self.STotElem2[pos2][j]) 
-                    for j in range(n) ] for i in range(m) ] ), [], [min(m,n)] )
+                self.Af_tree[k][:m,:n] = np.array( [ [self.F_integ_sing_vect( Sig[i], Tau[j] ) for j in range( n )]
+                                             for i in range( m ) ] )
+                self.F_tree_rk[k] = min( len(Sig), len(Tau) )
+            
+            else :
+                self.Af_tree[k][:m,:n] = np.array( [ [self.F_integ_nsing_vect( Sig[i], Tau[j] ) for j in range( n )]
+                                             for i in range( m ) ] )
+                self.F_tree_rk[k] = min( len(Sig), len(Tau) )
 
-            return( np.array( [ [ self.F_integ_nsing(self.STotElem1[pos1][i], self.STotElem2[pos2][j]) 
-                for j in range(n) ] for i in range(m) ] ), [], [min(m,n)] )
-
-        ## else recursive call
-        A_r_i = np.ndarray( shape=(2,2), dtype=np.ndarray )
-        B_r_i = np.ndarray( shape=(2,2), dtype=np.ndarray )
-        Mk_r_i = np.ndarray( shape=(2,2), dtype=np.ndarray )
-
-        A_r_i[0][0], B_r_i[0][0], Mk_r_i[0][0] = self.CreateBlockTreeBem(pos1*2, pos2*2)
-        A_r_i[1][0], B_r_i[1][0], Mk_r_i[1][0] = self.CreateBlockTreeBem(pos1*2+1, pos2*2)
-        A_r_i[0][1], B_r_i[0][1], Mk_r_i[0][1] = self.CreateBlockTreeBem(pos1*2, pos2*2+1)
-        A_r_i[1][1], B_r_i[1][1], Mk_r_i[1][1] = self.CreateBlockTreeBem(pos1*2+1, pos2*2+1)
-
-        self.Nlevel -= 1 
-        return( A_r_i, B_r_i, Mk_r_i )
+        
     
 
     def AssembleBlockTree(self, M, pos1, pos2, i=0) :
@@ -308,7 +326,7 @@ class FastBem( Bem_integ ) :
         return( M_out )
     
     
-    def AssembleBlockTree_AB(self, A, B, pos1, pos2) :
+    def AssembleBlockTree_AB(self, pos1, pos2, opti=1) :
 
         """
         AssembleBlockTree(A, B, pos1, pos2) - assemble a H_matrix
@@ -326,26 +344,33 @@ class FastBem( Bem_integ ) :
         -      the subblock is so provided by the matrix product A.B
         """
 
-        if (type(A[0][0]) == np.float64 ) or (type(A[0][0]) == np.float32 ) :
-            if len( B ) == 0 :
-                return( A ) ## sub-block non admissible
-            else :
-                return( np.dot( A, B ) ) ## sub_block admissible , A B product
+        if self.Nlevel == self.F_tree_adm[self.k][1] :
 
-        else :
-            self.Nlevel += 1
+            m, n = self.DimSLevel1[self.Nlevel][pos1], self.DimSLevel2[self.Nlevel][pos2]
+            rk = self.F_tree_rk[self.k]
+            self.k += 1
 
-            S1, S2 = self.DimSLevel1[self.Nlevel-1][pos1], self.DimSLevel2[self.Nlevel-1][pos2]
-            S1_2, S2_2 = self.DimSLevel1[self.Nlevel][pos1*2], self.DimSLevel2[self.Nlevel][pos2*2]
+            if opti :
+                if self.F_tree_adm[self.k-1][0] :
+                    return( np.dot( self.Af_tree_opti[self.k-1][:m,:rk], self.Bf_tree_opti[self.k-1][:rk,:n]) ) ## product A.B between asmissible block
+            else : 
+                if self.F_tree_adm[self.k-1][0] :
+                    return( np.dot( self.Af_tree[self.k-1][:m,:rk], self.Bf_tree[self.k-1][:rk,:n]) ) ## product A.B between asmissible block
+            return( self.Af_tree[self.k-1][:m,:n] ) 
 
-            M_out = np.zeros((S1, S2))
-            M_out[:S1_2,:S2_2] = self.AssembleBlockTree_AB(A[0][0], B[0][0], pos1*2, pos2*2)
-            M_out[:S1_2,S2_2:] = self.AssembleBlockTree_AB(A[0][1], B[0][1], pos1*2, pos2*2+1)
-            M_out[S1_2:,:S2_2] = self.AssembleBlockTree_AB(A[1][0], B[1][0], pos1*2+1, pos2*2)
-            M_out[S1_2:,S2_2:] = self.AssembleBlockTree_AB(A[1][1], B[1][1], pos1*2+1, pos2*2+1)
+        self.Nlevel += 1
 
-            self.Nlevel -= 1 
-            return( M_out )
+        S1, S2 = self.DimSLevel1[self.Nlevel-1][pos1], self.DimSLevel2[self.Nlevel-1][pos2]
+        S1_2, S2_2 = self.DimSLevel1[self.Nlevel][pos1*2], self.DimSLevel2[self.Nlevel][pos2*2]
+
+        M_out = np.zeros((S1, S2))
+        M_out[:S1_2,:S2_2] = self.AssembleBlockTree_AB(pos1*2, pos2*2, opti=opti)
+        M_out[:S1_2,S2_2:] = self.AssembleBlockTree_AB(pos1*2, pos2*2+1, opti=opti)
+        M_out[S1_2:,:S2_2] = self.AssembleBlockTree_AB(pos1*2+1, pos2*2, opti=opti)
+        M_out[S1_2:,S2_2:] = self.AssembleBlockTree_AB(pos1*2+1, pos2*2+1, opti=opti)
+
+        self.Nlevel -= 1 
+        return( M_out )
 
 
     def AssembleBlockTree_Frk(self, F_rk, pos1, pos2, rk) :
@@ -425,7 +450,7 @@ class FastBem( Bem_integ ) :
         """
 
         if type( A[0][0] ) == np.float64 :
-            if M_adm[0] == 1 :
+            if M_adm[0] == 0 :
                 return( np.array(A, dtype='float32'), np.array(B, dtype='float32'), M_rk, True) ## lowest block admissible
             m, n = A.shape
             self.CompCoefSafeOpti += m*n   
@@ -482,7 +507,7 @@ class FastBem( Bem_integ ) :
             
             self.CompCoefSafeOpti += rk11 + rk12 + rk21 + rk22
 
-            return( self.SubAssembly(A11, A12, A21, A22), self.SubAssembly(B11, B12, B21, B22), self.SubAssembly(M11_rk, M12_rk, M21_rk, M22_rk), True )
+            return( self.SubAssembly(A11, A12, A21, A22), self.SubAssembly(B11, B12, B21, B22), self.SubAssembly(M11_rk, M12_rk, M21_rk, M22_rk), False )
 
     
 

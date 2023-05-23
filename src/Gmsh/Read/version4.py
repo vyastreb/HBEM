@@ -4,8 +4,7 @@ import numpy as np
 
 from .tools import x_gap, elem_size_def
 
-
-class Geom_Gmsh_read4 :
+class Geom_Gmsh_read4( object ) :
 
 
     def __init__(self, type_elem, filename, path) :
@@ -18,7 +17,7 @@ class Geom_Gmsh_read4 :
 
         ### nodes coordinates 
         self.ind_line = 1
-        self.find_coord_section()
+        self.find_coord_section4()
         self.type_element = type_elem
         
         ### elements mesh 
@@ -32,16 +31,14 @@ class Geom_Gmsh_read4 :
             self.elem_rk = [0, 4, 1, 7, 8, 5, 3, 6, 2]
         self.N_node_element = len(self.elem_rk)
 
-        self.find_element_section()
-        self.init_mesh_size()
+        self.find_element_section4()
+        self.init_mesh_size4()
         self.Ne = len(self.mesh_elem)
-        print( self.Ne )
-        print( self.mesh_elem[0] )
         self.X0_mesh = (1/3) * np.sum(self.mesh_elem, axis=1 )
         
 
 
-    def read_gmsh_file(self) :
+    def read_gmsh_file4(self) :
 
         os.chdir(self.path)
         file_r = open(self.filename_gmsh, 'r')
@@ -51,7 +48,7 @@ class Geom_Gmsh_read4 :
         self.file_list_str = file_list
         del file_r2, file_list
 
-    def find_coord_section(self) :
+    def find_coord_section4(self) :
 
         #self.coord_node = 
         str_start, str_end = '$Nodes', '$EndNodes'
@@ -94,11 +91,10 @@ class Geom_Gmsh_read4 :
 
         self.mesh_point = coord_list
         # print( self.mesh_point )
-        print( len( self.mesh_point ) )
         del coord_list
     
 
-    def find_element_section(self) :
+    def find_element_section4(self) :
 
         #self.coord_node = 
         str_start, str_end = '$Elements', '$EndElements'
@@ -150,10 +146,10 @@ class Geom_Gmsh_read4 :
     
 
     def x_gap(self, X1, X2) :
-        return( np.sqrt((X1[0]-X2[0])*(X1[0]-X2[0]) + (X1[1]-X2[1])*(X1[1]-X2[1])) )
+        return( lin.norm( X1 - X2 ) )
         
     
-    def ElemSize_def(self):
+    def ElemSize_def4(self):
 
         ElemSize = np.array([0 for k in range(len(self.mesh_elem))] )
         for k in range(len(self.mesh_elem)) :
@@ -166,54 +162,5 @@ class Geom_Gmsh_read4 :
     def __len__(self) :
         return( len(self.mesh_elem) )
     
-    def init_mesh_size(self, ) :
+    def init_mesh_size4(self, ) :
         self.mesh_size = np.array([elem_size_def(mesh_k) for mesh_k in self.mesh_elem])
-
-
-
-### program from FlowerAlpha
-def MeshSRotate( mesh_init, S_init, dThe) :
-
-    mesh_new = np.zeros((len(mesh_init), 3, 2))
-
-    R_matrix = np.array([[np.cos(dThe), -np.sin(dThe)], [np.sin(dThe), np.cos(dThe)]])
-
-    for k in range(len(mesh_init)) :
-        mesh_line = np.zeros((3,2))
-        for i in range(3) : ## linear
-            mesh_line[i] = np.dot( R_matrix, mesh_init[k][i]) 
-        mesh_new[k] = mesh_line
-
-
-    S_new = []
-    for k in range(len(S_init)) :
-        STot_line = []
-        for s_i in S_init[k] :
-            STot_line.append( np.dot( R_matrix, s_i )  )
-        S_new.append( np.array(STot_line) )
-    
-    return( mesh_new, S_new )
-
-
-
-### program from FlowerAlpha
-def MeshSMiror( mesh_init, S_init, dThe) :
-
-    mesh_mirror = np.zeros((len(mesh_init), 3, 2))
-
-    ## mirror
-    R_mirror = np.array([[np.cos(2*dThe), np.sin(2*dThe)], [np.sin(2*dThe), -np.cos(2*dThe)]])
-    for k in range(len(mesh_init)) :
-        mesh_line = np.zeros((3,2))
-        for i in range(3) : ## linear
-            mesh_line[i] = np.dot( R_mirror, mesh_init[k][i]) 
-        mesh_mirror[k] = mesh_line
-    
-    S_new = []
-    for k in range(len(S_init)) :
-        STot_line = []
-        for s_i in S_init[k] :
-            STot_line.append( np.dot( R_mirror, s_i )  )
-        S_new.append( np.array(STot_line) )
-    
-    return( mesh_mirror, S_new )

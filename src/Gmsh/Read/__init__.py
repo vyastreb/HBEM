@@ -1,13 +1,12 @@
 
-import platform
+import numpy as np 
+import os 
 
-#VY FIXME: this stuff should be removed, we need to have a unique mesh reader
-sys_nd = platform.node()
-if sys_nd == "cristal-login" :
-    from .File4 import Geom_Gmsh_read4
-    __all__ = ["File4"]
+from .tools import x_gap, elem_size_def
+from .version2 import Geom_Gmsh_read2
+from .version4 import Geom_Gmsh_read4
+from .File import Geom_Gmsh_read
 
-if sys_nd == "pbeguin.materiaux.ensmp.fr" :
-    from .File import Geom_Gmsh_read 
-    from .File4 import Geom_Gmsh_read4
-    __all__ = ["File4", "File"]
+
+# __all__ = ["File", "tools", "version2", "version4"]
+

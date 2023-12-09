@@ -18,6 +18,7 @@ The root contains the following folders
   + `plot.py`
 + `doc/` documentation
 + `tests/` testing facilities
++ `tools/` additional tools (`GridToBezier.py`)
 + `examples/` examples
   + `circular/` flux through a circular spot
   + `flower/` flux through a flower-shaped spot
@@ -25,14 +26,15 @@ The root contains the following folders
 ## TODO
 
 + @PaulBeguin Do not add any v0, v1 in folder and file names.
-+ @PaulBeguin Please clean up undeeded files and folders.
++ @PaulBeguin Please clean up not needed files and folders.
 + @PaulBegiun Clean up the reader that it does not detect any specific platform, if needed to use different gmsh versions, it need to be specified as function's argument or could be detected on flight from *.msh file.
 
 
 ## :paperclip: History
 
++ 9 Dec 2023: added GridToBezier tool
++ 6 Apr 2023: First commit
 
-Apr 6 2023: First commit
 
 
 

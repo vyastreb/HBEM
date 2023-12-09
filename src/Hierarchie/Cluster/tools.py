@@ -2,4 +2,6 @@
 import numpy as np 
 
 def Is(S) :
-    return(np.argmax(np.max(S, axis=0) - np.min(S, axis=0)))
+    if ( np.max(S[:,:,0]) - np.min(S[:,:,0]) ) < ( np.max(S[:,:,1]) - np.min(S[:,:,1]) ):
+        return( 1 )
+    return( 0 )

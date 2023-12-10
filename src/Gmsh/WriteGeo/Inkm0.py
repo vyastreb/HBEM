@@ -1,8 +1,6 @@
-
-
-
-#############
-## code for generation of fractal flower shape
+"""
+Code for generation of a self-affine flower shape
+"""
 
 ### import module
 import numpy as np 

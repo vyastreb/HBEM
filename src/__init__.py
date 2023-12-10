@@ -1,2 +1,2 @@
 
-__all__ = ['Core', 'Gmsh', 'Hierarchie', 'Integrate']
+__all__ = ['Core', 'Gmsh', 'Hierarchy', 'Integrate']

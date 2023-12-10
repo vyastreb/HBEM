@@ -2,7 +2,8 @@
 
 + Author: Paul Beguin
 + Contributor: Vladislav A. Yastrebov
-+ Affiliation: MINES Paris, CNRS, France :fr:
++ Affiliation: MINES Paris - PSL, CNRS, France :fr:
++ Date: 2023
 + License: BSD3 :unlock:
 
 ## :book: Description
@@ -26,10 +27,12 @@ The root contains the following folders
 ## TODO
 
 + @PaulBegiun Clean up the reader that it does not detect any specific platform, if needed to use different gmsh versions, it need to be specified as function's argument or could be detected on flight from *.msh file.
++ Clean up precompiled libraries *.so
 
 
 ## :paperclip: History
 
++ 10 Dec 2023: cleaning initiation
 + 9 Dec 2023: added GridToBezier tool
 + 6 Apr 2023: First commit
 
